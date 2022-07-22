@@ -1,11 +1,13 @@
 import express from "express";
 import connection from "./db/postgres.js";
 import cors from "cors";
+import dayjs from "dayjs";
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
+// CATEGORIES
 app.get("/categories", async (req, res) => {
   const categories = await connection.query("SELECT * FROM categories");
   res.send(categories.rows);
@@ -32,6 +34,8 @@ app.post("/categories", async (req, res) => {
     return res.sendStatus(500);
   }
 });
+
+// GAMES
 app.get("/games", async (req, res) => {
   const { name } = req.query;
   if (name) {
@@ -69,6 +73,8 @@ app.post("/games", async (req, res) => {
     return res.sendStatus(500);
   }
 });
+
+// CUSTOMERS
 app.get("/customers", async (req, res) => {
   const { cpf } = req.query;
   if (cpf) {
@@ -135,6 +141,87 @@ app.put("/customers/:id", async (req, res) => {
     return res.sendStatus(500);
   }
 });
+
+// RENTALS
+app.get("/rentals", async (req, res) => {
+  const { customerId, gameId } = req.query;
+  let findRentals = []
+  if (customerId && gameId) {
+      findRentals = await connection.query(`SELECT * FROM rentals WHERE "customerId"='${customerId}' AND "gameId"='${gameId}'`);
+  } else if (customerId) {
+     findRentals = await connection.query(`SELECT * FROM rentals WHERE "customerId"='${customerId}'`);
+  } else if (gameId) {
+      findRentals = await connection.query(`SELECT * FROM rentals WHERE "gameId"='${gameId}'`);
+  } else{
+    findRentals = await connection.query(`SELECT * FROM rentals`);
+  }
+  if (findRentals.rows.length===0) {
+    return res.sendStatus(400);
+  }
+  const arr = [];
+  findRentals.rows.map(async (rental) => {
+    const findCustomers = await connection.query(
+      `SELECT * FROM customers WHERE id='${rental.customerId}'`
+    );
+    const findGames = await connection.query(
+      `SELECT * FROM games WHERE id='${rental.gameId}'`
+    );
+    const newObj = {
+      ...rental,
+      game: findGames.rows[0],
+      customer: findCustomers.rows[0],
+    };
+    arr.push(newObj);
+    console.log(newObj);
+  });
+  console.log(arr);
+  return res.send(arr);
+});
+app.post("/rentals", async (req, res) => {
+  const { customerId, gameId, daysRented } = req.body;
+  const rentDate = dayjs(Date.now()).format("YYYY-MM-DD");
+  const returnDate = null;
+  const delayFee = null;
+  const findCustomers = await connection.query(
+    `SELECT * FROM customers WHERE id='${customerId}'`
+  );
+  const findGames = await connection.query(
+    `SELECT * FROM games WHERE id='${gameId}'`
+  );
+  const customer = findCustomers.rows[0];
+  const game = findGames.rows[0];
+  const originalPrice = daysRented * game.pricePerDay;
+  const stock = game.stockTotal;
+  if (
+    customer.length === 0 ||
+    game.length === 0 ||
+    daysRented <= 0 ||
+    stock <= 0
+  ) {
+    return res.sendStatus(400);
+  }
+  try {
+    await connection.query(
+      `INSERT INTO rentals ("customerId","gameId","rentDate","daysRented","returnDate","originalPrice","delayFee") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        customerId,
+        gameId,
+        rentDate,
+        daysRented,
+        returnDate,
+        originalPrice,
+        delayFee,
+      ]
+    );
+    await connection.query(
+      `UPDATE games set "stockTotal"='${stock - 1}'  WHERE id= ${gameId}`
+    );
+    return res.sendStatus(201);
+  } catch {
+    return res.sendStatus(500);
+  }
+});
+
 app.listen(4000, () => {
   console.log("Server listening on port 4000.");
 });
