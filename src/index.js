@@ -84,17 +84,18 @@ app.get("/customers", async (req, res) => {
 });
 app.post("/customers", async (req, res) => {
   const { name, phone, cpf, birthday } = req.body;
+  let cpfVerif
+  if (cpf[0]==="0"){
+     cpfVerif = cpf.slice(1)
+  }
   if (!name || cpf.length !== 11 || phone.length < 10 || phone.length>12 ) {
     return res.sendStatus(400); 
   }
   try {
     const findCPF = await connection.query(
-      `SELECT * FROM customers WHERE cpf='${cpf}'`
+      `SELECT * FROM customers WHERE cpf='${cpfVerif}';`
     );
-    console.log("oi")
-    console.log(findCPF.rows)
     if (findCPF.rows.length === 0) {
-      console.log("oid")
      await connection.query(
         `INSERT INTO customers (name,phone,cpf,birthday) VALUES ('${name}', ${phone}, ${cpf}, '${birthday}');`
       );
