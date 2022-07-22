@@ -59,8 +59,7 @@ app.post("/games", async (req, res) => {
     );
     if (findGames.rows.length === 0) {
      await connection.query(
-        `INSERT INTO games (name,image,"stockTotal","categoryId","pricePerDay") VALUES ('${name}', '${image}', ${stockTotal}, ${categoryId}, ${pricePerDay});`
-      );
+        `INSERT INTO games (name,image,"stockTotal","categoryId","pricePerDay") VALUES ($1,$2,$3,$4,$5)`,[name, image, stockTotal, categoryId, pricePerDay]);
       return res.sendStatus(201);
     } else {
       return res.sendStatus(409);
@@ -84,20 +83,16 @@ app.get("/customers", async (req, res) => {
 });
 app.post("/customers", async (req, res) => {
   const { name, phone, cpf, birthday } = req.body;
-  let cpfVerif
-  if (cpf[0]==="0"){
-     cpfVerif = cpf.slice(1)
-  }
   if (!name || cpf.length !== 11 || phone.length < 10 || phone.length>12 ) {
     return res.sendStatus(400); 
   }
   try {
     const findCPF = await connection.query(
-      `SELECT * FROM customers WHERE cpf='${cpfVerif}';`
+      `SELECT * FROM customers WHERE cpf='${cpf}';`
     );
     if (findCPF.rows.length === 0) {
-     await connection.query(
-        `INSERT INTO customers (name,phone,cpf,birthday) VALUES ('${name}', ${phone}, ${cpf}, '${birthday}');`
+      await connection.query(
+        `INSERT INTO customers (name,phone,cpf,birthday) VALUES ($1,$2,$3,$4)`,[name, phone, cpf, birthday]
       );
       return res.sendStatus(201);
     } else {
@@ -106,6 +101,17 @@ app.post("/customers", async (req, res) => {
   } catch {
     return res.sendStatus(500);
   }
+});
+app.get("/customers/:id", async (req, res) => {
+  const { id } = req.params;
+  const findID = await connection.query(
+    `SELECT * FROM customers WHERE id='${id}'`
+  );
+  if(findID.rows.length===0){
+    return res.sendStatus(404);
+  }
+  return res.send(findID.rows);
+  
 });
 app.listen(4000, () => {
   console.log("Server listening on port 4000.");
