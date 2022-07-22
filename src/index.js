@@ -36,7 +36,7 @@ app.get("/games", async (req, res) => {
   const { name } = req.query;
   if (name){
     const findGames = await connection.query(
-      `SELECT * FROM games WHERE name='${name}'`
+      `SELECT * FROM games WHERE (lower(name) LIKE '${name.toLowerCase()}%')`
     );
     return res.send(findGames.rows);
   } else{
@@ -69,7 +69,43 @@ app.post("/games", async (req, res) => {
     return res.sendStatus(500);
   }
 });
-
+app.get("/customers", async (req, res) => {
+  const { cpf } = req.query;
+  if (cpf){
+    const findCostumers = await connection.query(
+      `SELECT * FROM customers WHERE (cpf) LIKE '${cpf}%'`
+    );
+    return res.send(findCostumers.rows);
+  } else{
+    const findCostumers = await connection.query("SELECT * FROM customers");
+    return res.send(findCostumers.rows);
+  }
+  
+});
+app.post("/customers", async (req, res) => {
+  const { name, phone, cpf, birthday } = req.body;
+  if (!name || cpf.length !== 11 || phone.length < 10 || phone.length>12 ) {
+    return res.sendStatus(400); 
+  }
+  try {
+    const findCPF = await connection.query(
+      `SELECT * FROM customers WHERE cpf='${cpf}'`
+    );
+    console.log("oi")
+    console.log(findCPF.rows)
+    if (findCPF.rows.length === 0) {
+      console.log("oid")
+     await connection.query(
+        `INSERT INTO customers (name,phone,cpf,birthday) VALUES ('${name}', ${phone}, ${cpf}, '${birthday}');`
+      );
+      return res.sendStatus(201);
+    } else {
+      return res.sendStatus(409);
+    }
+  } catch {
+    return res.sendStatus(500);
+  }
+});
 app.listen(4000, () => {
   console.log("Server listening on port 4000.");
 });
