@@ -145,37 +145,60 @@ app.put("/customers/:id", async (req, res) => {
 // RENTALS
 app.get("/rentals", async (req, res) => {
   const { customerId, gameId } = req.query;
-  let findRentals = []
+  let findRentals = [];
   if (customerId && gameId) {
-      findRentals = await connection.query(`SELECT * FROM rentals WHERE "customerId"='${customerId}' AND "gameId"='${gameId}'`);
+    findRentals = await connection.query(
+      `SELECT * FROM rentals WHERE "customerId"='${customerId}' AND "gameId"='${gameId}'`
+    );
   } else if (customerId) {
-     findRentals = await connection.query(`SELECT * FROM rentals WHERE "customerId"='${customerId}'`);
+    findRentals = await connection.query(
+      `SELECT * FROM rentals WHERE "customerId"='${customerId}'`
+    );
   } else if (gameId) {
-      findRentals = await connection.query(`SELECT * FROM rentals WHERE "gameId"='${gameId}'`);
-  } else{
+    findRentals = await connection.query(
+      `SELECT * FROM rentals WHERE "gameId"='${gameId}'`
+    );
+  } else {
     findRentals = await connection.query(`SELECT * FROM rentals`);
   }
-  if (findRentals.rows.length===0) {
+  if (findRentals.rows.length === 0) {
     return res.sendStatus(400);
   }
   const arr = [];
-  findRentals.rows.map(async (rental) => {
-    const findCustomers = await connection.query(
-      `SELECT * FROM customers WHERE id='${rental.customerId}'`
-    );
-    const findGames = await connection.query(
-      `SELECT * FROM games WHERE id='${rental.gameId}'`
-    );
-    const newObj = {
-      ...rental,
-      game: findGames.rows[0],
-      customer: findCustomers.rows[0],
-    };
-    arr.push(newObj);
-    console.log(newObj);
-  });
-  console.log(arr);
-  return res.send(arr);
+  let newObj = {};
+  try {
+    findRentals.rows.map(async (rental) => {
+      const findCustomers = await connection.query(
+        `SELECT * FROM customers WHERE id='${rental.customerId}'`
+      );
+      const findGames = await connection.query(
+        `SELECT * FROM games WHERE id='${rental.gameId}'`
+      );
+      const findCategoryName = await connection.query(
+        `SELECT * FROM categories WHERE id='${findGames.rows[0].categoryId}'`
+      );
+      delete findCustomers.rows[0].cpf;
+      delete findCustomers.rows[0].birthday;
+      delete findCustomers.rows[0].phone;
+      delete findGames.rows[0].stockTotal;
+      delete findGames.rows[0].pricePerDay;
+      delete findCategoryName.rows[0].id;
+      newObj = {
+        ...rental,
+        game: {
+          ...findGames.rows[0],
+          categoryName: findCategoryName.rows[0].name,
+        },
+        customer: findCustomers.rows[0],
+      };
+      arr.push(newObj);
+      if (arr.length === findRentals.rows.length) {
+        return res.send(arr);
+      }
+    });
+  } catch {
+    return res.sendStatus(500);
+  }
 });
 app.post("/rentals", async (req, res) => {
   const { customerId, gameId, daysRented } = req.body;
@@ -219,6 +242,24 @@ app.post("/rentals", async (req, res) => {
     return res.sendStatus(201);
   } catch {
     return res.sendStatus(500);
+  }
+});
+app.delete("/rentals/:id", async (req, res) => {
+  const {id} = req.params
+  try {
+    const findRentalID= await connection.query ( `SELECT * FROM rentals WHERE id=${id}`)
+    console.log(findRentalID.rows[0])
+    if (!findRentalID.rows[0]){
+      return res.sendStatus(404)
+    }
+    if( findRentalID.rows[0].returnDate===null){
+      const deleteRental =  await connection.query(
+        `DELETE FROM rentals WHERE id=${id};`);
+          return res.sendStatus(201)
+    }
+    res.sendStatus(400)
+  } catch {
+    res.sendStatus(500);
   }
 });
 
