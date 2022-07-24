@@ -244,6 +244,37 @@ app.post("/rentals", async (req, res) => {
     return res.sendStatus(500);
   }
 });
+app.post("/rentals/:id/return", async (req,res) => {
+  const {id} = req.params
+  const findRentals = await connection.query(
+    `SELECT * FROM rentals WHERE  id= ${id}`
+  );
+  if(!findRentals.rows[0]){
+    return res.sendStatus(404)
+  } 
+  else if (findRentals.rows[0].returnDate!==null){
+    return res.sendStatus(400)
+  }
+  let delayFee=0
+  const returnDateDay=dayjs(Date.now()).format("YYYY-MM-DD")
+  const returnDate=Date.now()
+  const {daysRented,game}= findRentals.rows[0]
+  const findGames = await connection.query(
+    `SELECT * FROM games WHERE  id= ${id}`
+  );
+  const rentDate= Date.parse((findRentals.rows[0].rentDate))
+  const daysSinceRented= dayjs(returnDate-rentDate).format("D")-1;
+  const daysLeftToReturn=daysRented-daysSinceRented
+  if (daysLeftToReturn<0){
+    delayFee=Math.abs(daysLeftToReturn)*findGames.rows[0].pricePerDay
+  }
+  // const delayFeeCurrency=delayFee.toLocaleString('pt-br',{style: 'currency', currency: 'BRL'}).replace()
+  await connection.query(
+    `UPDATE rentals set "returnDate"='${returnDateDay}',"delayFee"=${delayFeeCurrency}  WHERE id= ${id}`
+  );
+  res.sendStatus(200)
+
+})
 app.delete("/rentals/:id", async (req, res) => {
   const {id} = req.params
   try {
