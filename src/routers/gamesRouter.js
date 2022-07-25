@@ -1,18 +1,10 @@
 import { Router } from "express";
-import {
-  getCustomer,
-  getCustomerById,
-  postCustomer,
-  putCustomer,
-} from "../controllers/customerControllers.js";
+import { getGames, postGames } from "../controllers/gamesControllers.js";
 
-const customerRouter = Router();
+const gamesRouter = Router();
 
-customerRouter.get("/customers", getCustomer);
+gamesRouter.get("/games", getGames);
 
-customerRouter.post("/customers", postCustomer);
-customerRouter.get("/customers/:id", getCustomerById);
+gamesRouter.post("/games", postGames);
 
-customerRouter.put("/customers/:id", putCustomer);
-
-export default customerRouter;
+export default gamesRouter;
